@@ -5,6 +5,11 @@
 
 By bringing together stitching guides, interactive calculation tools, pattern visualizations, and an AI-powered tailoring mentor, StitchAble aims to make garment-making more accessible, structured, and beginner-friendly.
 
+## 🌐 Live Demo
+
+Try StitchAble here:
+
+[Open StitchAble](https://stitchable-app.vercel.app)
 ---
 
 ## 🌟 Key Features
