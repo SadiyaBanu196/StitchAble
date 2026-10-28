@@ -2,6 +2,9 @@ import http.server
 import socketserver
 import os
 import sys
+import json
+import urllib.request
+import urllib.error
 
 # Configure stdout and stderr for UTF-8 on Windows
 if hasattr(sys.stdout, 'reconfigure'):
@@ -38,7 +41,105 @@ class AtelierRequestHandler(http.server.SimpleHTTPRequestHandler):
         # Disable caching for instant updates
         self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
         self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
         super().end_headers()
+
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.end_headers()
+
+    def do_POST(self):
+        if self.path == "/api/mentor":
+            self.handle_mentor_api()
+        else:
+            self.send_error(404, "Endpoint not found")
+
+    def handle_mentor_api(self):
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+            post_body = self.rfile.read(content_length)
+            payload = json.loads(post_body.decode("utf-8")) if post_body else {}
+
+            query = payload.get("query", "").strip()
+            lang = payload.get("lang", "en")
+            project_context = payload.get("projectContext", None)
+
+            gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+            groq_key = os.environ.get("GROQ_API_KEY", "").strip()
+
+            if gemini_key:
+                response_data = self.call_gemini_api(gemini_key, query, lang, project_context)
+                if response_data:
+                    self.send_json_response(200, response_data)
+                    return
+
+            # If no API key configured on server or external call failed, respond gracefully
+            self.send_json_response(200, {
+                "ok": False,
+                "message": "Local expert mode active. Using verified NIFT curriculum knowledge base.",
+                "useExpert": True
+            })
+
+        except Exception as e:
+            self.send_json_response(200, {
+                "ok": False,
+                "error": str(e),
+                "useExpert": True
+            })
+
+    def call_gemini_api(self, api_key, query, lang, project_context):
+        try:
+            is_te = lang == "te"
+            context_str = ""
+            if project_context:
+                context_str = f"\nUser's Active Project Context: {json.dumps(project_context)}"
+
+            system_prompt = (
+                f"You are 'Master Ji', a world-class tailoring and couture fashion mentor. "
+                f"Respond in {'pure Telugu with authentic tailoring vocabulary' if is_te else 'clear tailoring terminology'}. "
+                f"Never fabricate measurements. Explain formulas deterministically.{context_str}"
+            )
+
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+            req_data = json.dumps({
+                "contents": [
+                    {
+                        "role": "user",
+                        "parts": [{"text": f"{system_prompt}\n\nUser Question: {query}"}]
+                    }
+                ]
+            }).encode("utf-8")
+
+            req = urllib.request.Request(
+                url,
+                data=req_data,
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+
+            with urllib.request.urlopen(req, timeout=10) as response:
+                if response.status == 200:
+                    res_json = json.loads(response.read().decode("utf-8"))
+                    text = res_json.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+                    if text:
+                        return {
+                            "ok": True,
+                            "title": "మాస్టర్ జీ లైవ్ సమాధానం" if is_te else "Master Ji Live AI Analysis",
+                            "content": text,
+                            "actionTag": "లైవ్ AI" if is_te else "Live AI"
+                        }
+        except Exception:
+            pass
+        return None
+
+    def send_json_response(self, code, data):
+        body = json.dumps(data).encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def handle(self):
         try:

@@ -1,14 +1,20 @@
 /**
  * STITCHABLE - Master Ji AI Tailoring Mentor Engine
  * Provides context-aware doubt clarification in English and Telugu.
- * Supports built-in expert knowledge base + optional Gemini / Groq API keys.
+ * Supports:
+ * 1. Active Garment Project contextual explanations (using real user measurements & formulas)
+ * 2. Deterministic tailoring pedagogy ("Why is this step necessary?", "Why ease?")
+ * 3. Prevention of common beginner tailoring mistakes
+ * 4. Local Expert Knowledge Engine with graceful offline/API failure handling
+ * 5. Optional backend proxy (/api/mentor) or user-provided Gemini/Groq API key
  */
 
 export class MentorAI {
-  constructor(getLang) {
+  constructor(getLang, getActiveProject = null) {
     this.getLang = getLang;
+    this.getActiveProject = getActiveProject;
     this.apiKey = localStorage.getItem("stitchable_api_key") || "";
-    this.speechSynth = window.speechSynthesis;
+    this.speechSynth = typeof window !== 'undefined' ? window.speechSynthesis : null;
     this.currentUtterance = null;
   }
 
@@ -24,23 +30,120 @@ export class MentorAI {
   async askQuestion(query) {
     const lang = this.getLang();
     const cleanQuery = query.trim().toLowerCase();
+    const project = this.getActiveProject ? this.getActiveProject() : null;
 
-    // If API key is present and looks like Gemini or Groq, we can call it
+    // 1. First, check if backend API proxy is available (e.g. from server.py with GEMINI_API_KEY)
+    try {
+      const serverRes = await this.callServerMentorProxy(query, lang, project);
+      if (serverRes) return serverRes;
+    } catch (e) {
+      // Backend not running or endpoint not supported; continue
+    }
+
+    // 2. If client-side API key is configured by user, call external API directly
     if (this.apiKey) {
       try {
-        const liveResponse = await this.callExternalLLM(query, lang);
+        const liveResponse = await this.callExternalLLM(query, lang, project);
         if (liveResponse) return liveResponse;
       } catch (err) {
         console.warn("External API call failed, falling back to local expert mentor:", err);
       }
     }
 
-    // Local Expert Knowledge Base Engine
-    return this.generateExpertAnswer(cleanQuery, lang);
+    // 3. Fallback to Local Expert Knowledge Base Engine (Context-Aware)
+    return this.generateExpertAnswer(cleanQuery, lang, project);
   }
 
-  generateExpertAnswer(q, lang) {
+  async callServerMentorProxy(query, lang, project) {
+    try {
+      const res = await fetch("/api/mentor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query,
+          lang,
+          projectContext: project ? {
+            garment: project.state?.selectedGarment,
+            unit: project.state?.unit,
+            measurements: project.getMeasurementsInInches ? project.getMeasurementsInInches() : project.state?.measurements,
+            stage: project.state?.stage
+          } : null
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.content) {
+          return {
+            title: data.title || (lang === "te" ? "మాస్టర్ జీ ప్రత్యక్ష సమాధానం" : "Master Ji Tailoring Analysis"),
+            content: data.content,
+            actionTag: data.actionTag || (lang === "te" ? "లైవ్ AI మెంటర్" : "Live AI Mentor")
+          };
+        }
+      }
+    } catch (err) {
+      // Server endpoint not reachable, return null to continue to expert engine
+    }
+    return null;
+  }
+
+  generateExpertAnswer(q, lang, project = null) {
     const isTe = lang === "te" || /[\u0C00-\u0C7F]/.test(q);
+
+    // Extract active project details if available
+    let projectContextNote = "";
+    let activeGarment = null;
+    let normMeasurements = null;
+    let patternCalc = null;
+
+    if (project && project.getMeasurementsInInches) {
+      normMeasurements = project.getMeasurementsInInches();
+      activeGarment = project.state?.selectedGarment;
+      try {
+        patternCalc = project.getPatternCalculations();
+      } catch (e) {
+        // patternCalc optional
+      }
+    }
+
+    // Context query: Inquiries about current project or measurements or calculations
+    const asksAboutProject = q.includes("my project") || q.includes("my garment") || q.includes("my measurement") ||
+      q.includes("my blouse") || q.includes("my kurti") || q.includes("నా ప్రాజెక్ట్") || q.includes("నా కొలత") ||
+      q.includes("calculate my") || q.includes("my armhole") || q.includes("my chest") || q.includes("my fabric");
+
+    if (asksAboutProject && project && normMeasurements) {
+      const gName = project.supportedGarments[activeGarment]?.title[lang] || activeGarment;
+      const c = normMeasurements.chest;
+      const w = normMeasurements.waist;
+      const s = normMeasurements.shoulder;
+      const l = normMeasurements.length;
+      const armhole = (c / 6 + 0.5).toFixed(2);
+      const bustLine = (c / 4 + 1.5).toFixed(2);
+      const neckWidth = (c / 12).toFixed(2);
+
+      return isTe ? {
+        title: `మీ ప్రస్తుత ప్రాజెక్ట్: ${gName} విశ్లేషణ`,
+        content: `మీరు నమోదు చేసిన కొలతలు: ఛాతీ = ${c}", నడుము = ${w}", భుజం = ${s}", పొడవు = ${l}".
+ఈ ప్రాజెక్ట్ కొరకు ఖచ్చితమైన టైలరింగ్ లెక్కలు:
+1. **చంక లోతు (Armhole Depth):** ${c} / 6 + 0.5" = **${armhole} అంగుళాలు** (${(armhole * 2.54).toFixed(1)} cm).
+   *ఎందుకు ఈ ఫార్ములా?* ఇది చేతి కదలికలకు పూర్తి స్వేచ్ఛను ఇస్తూ, చంక కింద గుడ్డ బిగుతు కాకుండా సౌకర్యంగా ఉండేలా చేస్తుంది.
+2. **ఛాతీ లైన్ (+1.5" లూజ్ తో):** ${c} / 4 + 1.5" = **${bustLine} అంగుళాలు** (${(bustLine * 2.54).toFixed(1)} cm).
+   *ఎందుకు 1.5" లూజ్ (Ease)?* మానవ శరీరం శ్వాస తీసుకున్నప్పుడు ఛాతీ వ్యాకోచిస్తుంది; లూజ్ ఇవ్వకపోతే సైడ్ కుట్లు తెగిపోతాయి.
+3. **మెడ వెడల్పు (Neck Width):** ${c} / 12 = **${neckWidth} అంగుళాలు** (${(neckWidth * 2.54).toFixed(1)} cm).
+   *సలహా:* దీనికన్నా ఎక్కువ పెడితే బ్లౌజ్ భుజాలు జారిపోతాయి.`,
+        actionTag: "ప్రాజెక్ట్ విశ్లేషణ"
+      } : {
+        title: `Your Active Project: ${gName} Breakdown`,
+        content: `Based on your saved project dimensions (Chest = ${c}\", Waist = ${w}\", Shoulder = ${s}\", Length = ${l}\"):
+1. **Armhole Depth:** ${c} / 6 + 0.5\" = **${armhole} inches** (${(armhole * 2.54).toFixed(1)} cm).
+   *Why this formula?* It creates a balanced armhole depth allowing full 360° arm reach without pulling the side bodice upward.
+2. **Bust Line (+1.5\" Ease):** ${c} / 4 + 1.5\" = **${bustLine} inches** (${(bustLine * 2.54).toFixed(1)} cm).
+   *Why ease is essential:* When breathing and moving, the rib cage expands. Adding 1.5\" wearing ease prevents strain on darts and side seams.
+3. **Neck Width:** ${c} / 12 = **${neckWidth} inches** (${(neckWidth * 2.54).toFixed(1)} cm).
+   *Rule of thumb:* Never exceed Chest / 12 on deep neck blouses to prevent shoulder slippage.`,
+        actionTag: "Project Diagnostics"
+      };
+    }
 
     // 1. Blouse shoulder falling
     if (q.includes("shoulder") || q.includes("భుజం") || q.includes("జారిపో") || q.includes("falling") || q.includes("slip")) {
@@ -84,14 +187,59 @@ export class MentorAI {
       };
     }
 
-    // 3. Machine: Thread Breaking
+    // 3. Why ease / seam allowance is necessary
+    if (q.includes("ease") || q.includes("లూజ్") || q.includes("margin") || q.includes("allowance") || q.includes("ఎందుకు")) {
+      return isTe ? {
+        title: "టైలరింగ్ లో ఈజ్ (Ease) మరియు కుట్టు మార్జిన్ ఎందుకు అవసరం?",
+        content: `కొలతలకు అదనంగా బట్ట ఎందుకు కలుపుతామో అర్థం చేసుకోవడం చాలా ముఖ్యం:
+1. **బాడీ కొలతలు vs గార్మెంట్ కొలతలు:** శరీరం కొలత (Pure Body) కంటే బట్ట కనీసం 1.5" నుండి 2.5" పెద్దదిగా ఉండాలి. దీనిని **వేరింగ్ ఈజ్ (Wearing Ease)** అంటారు. ఇది కూర్చోవడానికి, శ్వాస తీసుకోవడానికి అవసరం.
+2. **సైడ్ సీమ్ మార్జిన్ (1.5\"):** సాధారణంగా సైడ్స్ లో 1.5 అంగుళాలు వదులుతారు. దీనివల్ల భవిష్యత్తులో బరువు పెరిగినా కుట్లు విప్పి సులభంగా లూజ్ చేసుకోవచ్చు.
+3. **చంక & భుజం మార్జిన్ (0.5\"):** ఇక్కడ 1/2 అంగుళం కంటే ఎక్కువ ఉంచకూడదు; ఎక్కువ గుడ్డ ఉంచితే చంక వద్ద పోగుపడి అసౌకర్యంగా ఉంటుంది.`,
+        actionTag: "ఈజ్ & మార్జిన్ వివరణ"
+      } : {
+        title: "Why Ease & Seam Allowances are Critical in Pattern Making",
+        content: `Understanding the difference between raw body dimensions and finished garment dimensions:
+1. **Wearing Ease (+1.5\" to +2.5\"):** Skin-tight garments split under dynamic movement. Ease accommodates lung inhalation and shoulder rotation.
+   - Traditional Blouse: +1.5\" ease
+   - Kurti / Kameez: +2.0\" ease
+   - Western Top: +2.5\" ease
+2. **Side Seam Allowance (1.5\"):** Generous 1.5\" side margins provide safety insurance for future alterations.
+3. **Armhole & Shoulder Allowance (0.5\"):** Keep precisely to 0.5\". Too much seam allowance inside the curved armhole creates uncomfortable bulky ridges.`,
+        actionTag: "Pattern Science"
+      };
+    }
+
+    // 4. Common beginner tailoring mistakes
+    if (q.includes("mistake") || q.includes("తప్పు") || q.includes("beginner") || q.includes("problem") || q.includes("జాగ్రత్త")) {
+      return isTe ? {
+        title: "కొత్తగా కుట్టేవారు చేసే 5 సాధారణ తప్పులు & పరిష్కారాలు",
+        content: `ప్రారంభకులు ఎక్కువగా చేసే తప్పులు మరియు వాటి నివారణ:
+1. **బట్టను ఉతకకుండా కట్ చేయడం:** కాటన్ మరియు రేయాన్ బట్టలు ఉతికినప్పుడు 3-5% ముడుచుకుంటాయి (Shrinkage). కుట్టకముందే చల్లటి నీటిలో నానబెట్టి, ఆరబెట్టి, ఐరన్ చేయాలి.
+2. **క్రాస్ గ్రెయిన్ పై కట్ చేయడం:** ప్యాటర్న్ పీసులను ఎల్లప్పుడూ నిలువు దారాల (Warp) వెంబడే పరచాలి. క్రాస్ గా కట్ చేస్తే తొడుక్కున్నప్పుడు డ్రెస్ ఒకవైపుకు మెలితిరుగుతుంది.
+3. **కర్వ్స్ వద్ద కట్స్ (Notches) ఇవ్వకపోవడం:** మెడ మరియు చంక కుట్టిన తర్వాత మార్జిన్ లో చిన్న చిన్న కట్స్ ఇవ్వకపోతే గుడ్డ సాఫీగా తిరగక ముడతలు పడుతుంది.
+4. **ఐరన్ ను ముందుకు వెనుకకు రుద్దడం:** కుట్టిన తర్వాత ఐరన్ ను పై నుండి కిందకు అదిమి పట్టాలి (Pressing), బట్టను అటూ ఇటూ రుద్దకూడదు (రుద్దితే బట్ట సాగిపోతుంది).
+5. **తప్పుడు సూది వాడటం:** సిల్క్ కు సైజ్ 9 లేదా 11, కాటన్ కు సైజ్ 14, జీన్స్ కు సైజ్ 16 వాడాలి.`,
+        actionTag: "బిగినర్స్ గైడ్"
+      } : {
+        title: "5 Most Common Beginner Tailoring Mistakes to Avoid",
+        content: `Here are the top pitfalls beginners face and how to steer clear of them:
+1. **Skipping Pre-Washing:** Cotton, linen, and rayon shrink 3% to 6% on first wash. Always pre-wash, dry, and steam press before placing your shears on the fabric!
+2. **Disregarding the Grainline:** Always align pattern pieces parallel to the lengthwise selvage (warp). Cutting off-grain causes dresses and trousers to twist around the body.
+3. **Neglecting Curved Seam Notching:** Concave curves (necklines and armholes) need 1/8\" snips; convex curves require small V-notches. Without notching, seams bunch and pull awkwardly.
+4. **Ironing instead of Pressing:** Never drag your hot iron back and forth across cut bias seams; lift and press down firmly to lock seams without stretching them out of shape.
+5. **Using the Wrong Needle:** Universal needles punch holes in delicate silk or snap on denim. Always match fabric weight to needle size (Size 11 for silk, 14 for cotton, 16 for denim).`,
+        actionTag: "Tailoring Mistakes"
+      };
+    }
+
+    // 5. Machine: Thread Breaking
     if (q.includes("break") || q.includes("దారం తెగి") || q.includes("thread") || q.includes("snapping")) {
       return isTe ? {
         title: "పై దారం లేదా కింది దారం తెగిపోవడానికి పరిష్కారం",
         content: `దారం తెగిపోతుంటే ఈ 5 స్టెప్పులు చేయండి:
 1. **టెన్షన్ డయల్ సరిచూడండి:** టెన్షన్ చాలా టైట్ గా ఉంటే నంబర్ 5 నుండి 3 లేదా 4 కి తగ్గించండి.
-2. **సూది మొన పరిశీలించండి:** సూది కొన వంకరగా ఉన్నా లేదా మొద్దుబారినా దారాన్ని తెంచుతుంది. వెంటనే కొత్త ఆర్గాన్ / ఉషా సూది మార్చండి.
-3. **సూది అమరిక:** సూదిలోని ఫ్లాట్ సైడ్ (చదునైన భాగం) కరెక్ట్ వైపు ఉండేలా బిగించారా చూడండి.
+2. **సూది మొన పరిశీలించండి:** సూది కొన వంకరగా ఉన్నా లేదా మొద్దుబారినా దారాన్ని తెంచుతుంది. వెంటనే కొత్త సూది మార్చండి.
+3. **సూది అమరిక:** సూదిలోని ఫ్లాట్ సైడ్ కరెక్ట్ వైపు ఉండేలా బిగించారా చూడండి.
 4. **త్రెడింగ్ తప్పులు:** ప్రెషర్ ఫుట్ పైకి ఎత్తి మళ్ళీ మొదటి నుండి దారం ఎక్కించండి. టేక్-అప్ లివర్ లో దారం ఉండాలి.
 5. **బాబిన్ కేస్:** బాబిన్ లోపల చిక్కుబడ్డ నూలు దారాలను క్లీన్ చేయండి.`,
         actionTag: "మిషన్ రిపేర్"
@@ -107,14 +255,14 @@ export class MentorAI {
       };
     }
 
-    // 4. Bobbin Bunching / Looping
+    // 6. Bobbin Bunching / Looping
     if (q.includes("bobbin") || q.includes("loop") || q.includes("బాబిన్") || q.includes("ముద్ద") || q.includes("nest")) {
       return isTe ? {
         title: "కింది దారం ముద్దపడటం (Bird Nesting) నివారణ",
         content: `బట్ట కింద దారాలు చిక్కుబడి ముద్ద పడటానికి కారణం:
 *ఆశ్చర్యకరమైన విషయం ఏమిటంటే, కింది దారం ముద్ద పడుతుంటే 95% సందర్భాల్లో తప్పు **పై దారంలోనే** ఉంటుంది!*
 1. **ప్రెషర్ ఫుట్ ఎత్తి త్రెడ్ చేయండి:** ప్రెషర్ ఫుట్ కింద ఉన్నప్పుడు దారం టెన్షన్ ప్లేట్ల మధ్యలోకి దిగదు.
-2. **టేక్-అప్ లివర్:** పై దారం టేక్-అప్ లివర్ (పైకి కిందికి కదిలే రాడ్) నుండి జారిపోతే కింద ముద్దపడుతుంది.
+2. **టేక్-అప్ లివర్:** పై దారం టేక్-అప్ లివర్ నుండి జారిపోతే కింద ముద్దపడుతుంది.
 3. **బాబిన్ టెన్షన్ టెస్ట్:** బాబిన్ కేస్ దారాన్ని పట్టుకుని చేత్తో వేలాడదీయండి. కొద్దిగా కుదిపితే 1 అంగుళం జారాలి (Yo-Yo Test). అతిగా లూజ్ ఉంటే చిన్న స్క్రూను స్వల్పంగా టైట్ చేయండి.`,
         actionTag: "బాబిన్ టెన్షన్"
       } : {
@@ -127,7 +275,7 @@ export class MentorAI {
       };
     }
 
-    // 5. Needles for Silk vs Denim
+    // 7. Needles for Silk vs Denim
     if (q.includes("needle") || q.includes("సూది") || q.includes("denim") || q.includes("silk") || q.includes("సైజు")) {
       return isTe ? {
         title: "సిల్క్, కాటన్ మరియు డెనిమ్ కు ఏ సైజు సూది వాడాలి?",
@@ -150,32 +298,34 @@ export class MentorAI {
       };
     }
 
-    // 6. Cloth needed for Anarkali or Patiala
-    if (q.includes("cloth") || q.includes("fabric") || q.includes("meter") || q.includes("ఎన్ని మీటర్ల") || q.includes("క్లాత్") || q.includes("meters")) {
+    // 8. Fabric needed
+    if (q.includes("cloth") || q.includes("fabric") || q.includes("meter") || q.includes("ఎన్ని మీటర్ల") || q.includes("క్లాత్") || q.includes("meters") || q.includes("yard")) {
       return isTe ? {
-        title: "అనార్కలి మరియు పాటియాలా కు క్లాత్ లెక్కలు",
-        content: `ఖచ్చితమైన క్లాత్ అవసరాలు:
-• **20-కలి గ్రాండ్ అనార్కలి:** 5 నుండి 6 మీటర్లు (44" పన్నా). లైనింగ్ 3.5 మీటర్లు.
-• **ఫుల్ పాటియాలా సల్వార్ (నిండు కుచ్చులు):** 3.5 నుండి 4 మీటర్లు (44" పన్నా).
-• **సెమీ పాటియాలా / ప్లెయిన్ సల్వార్:** 2 నుండి 2.5 మీటర్లు.
-• **సాధారణ సారీ బ్లౌజ్:** 80 సెం.మీ (36" పన్నా) లేదా 1 మీటర్ (పెద్ద సైజు మరియు మోచేతి వరకు చేతులు).
-• **360 డిగ్రీల అంబ్రెల్లా స్కర్ట్:** 3 నుండి 3.5 మీటర్లు.
-*సలహా: కొత్తవారు కటింగ్ లో మార్జిన్ల కోసం ఎప్పుడూ 25 సెం.మీ అదనంగా తీసుకోవాలి.*`,
+        title: "అనార్కలి, పాటియాలా మరియు బ్లౌజ్ కు క్లాత్ లెక్కలు",
+        content: `ఖచ్చితమైన క్లాత్ అవసరాలు (44" పన్నా క్లాత్ కు):
+• **సాధారణ సారీ బ్లౌజ్:** 80 సెం.మీ (ఛాతీ 38" లోపు), 1 మీటర్ (ఛాతీ 40" పైన లేదా పొడవు చేతులకు).
+• **ప్రిన్సెస్ కట్ బ్లౌజ్:** 1.0 నుండి 1.25 మీటర్లు.
+• **సాధారణ కుర్తీ / కమీజ్:** 2.0 నుండి 2.25 మీటర్లు.
+• **20-కలి గ్రాండ్ అనార్కలి:** 5 నుండి 6 మీటర్లు (+ 3.5 మీటర్ల లైనింగ్).
+• **షాహీ పాటియాలా సల్వార్:** 3.5 నుండి 4 మీటర్లు.
+• **360° అంబ్రెల్లా స్కర్ట్:** 3.0 నుండి 3.5 మీటర్లు.
+*సలహా: కొత్తవారు కటింగ్ లో మార్జిన్లు మరియు ముడుచుకుపోయే వెసులుబాటు కోసం ఎప్పుడూ 25 సెం.మీ అదనంగా తీసుకోవాలి.*`,
         actionTag: "క్లాత్ కాలిక్యులేషన్"
       } : {
         title: "Fabric Estimation Breakdown for Indian Silhouettes",
         content: `Standard yardage calculations on 44\" fabric roll:
+• **Traditional Saree Blouse:** 80 cm for bust < 38\"; 1.0 meter for bust ≥ 40\" or elbow sleeves.
+• **Princess Cut Designer Blouse:** 1.0 to 1.25 meters.
+• **Plain Kameez / Kurti:** 2.0 to 2.25 meters.
 • **20-Kali Majestic Anarkali:** 5.0 to 6.0 meters (+ 3.5 meters lining).
 • **Authentic Shahi Patiala Salwar:** 3.5 to 4.0 meters for dense cascading pleats.
-• **Semi-Patiala / Plain Salwar:** 2.25 to 2.5 meters.
-• **Traditional Saree Blouse:** 80 cm for normal bust/short sleeve, 1.0 meter for elbow sleeve or bust > 40\".
 • **360° Circular Umbrella Skirt:** 3.0 to 3.5 meters depending on floor length.
 *Rule of thumb: Always add 25 cm safety margin for pre-wash shrinkage and pattern layout adjustments.*`,
         actionTag: "Fabric Yardage"
       };
     }
 
-    // 7. French Seam vs Flat-Felled Seam
+    // 9. Seam comparison
     if (q.includes("seam") || q.includes("french") || q.includes("కుట్టు") || q.includes("సీమ్") || q.includes("flat fell")) {
       return isTe ? {
         title: "ఫ్రెంచ్ సీమ్ మరియు ఫ్లాట్-ఫెల్డ్ సీమ్ మధ్య తేడా",
@@ -213,7 +363,7 @@ export class MentorAI {
 2. **గ్రెయిన్‌లైన్ (Grainline):** బట్ట యొక్క నిలువు దారాల (Warp) వెంబడే ప్యాటర్న్ పీసులను పరచాలి. క్రాస్ గా పరిస్తే దుస్తులు పక్కకు తిరుగుతాయి.
 3. **ఐరన్ ప్రెస్సింగ్:** ప్రతి కుట్టు వేసిన వెంటనే ప్రెస్ చేయడం వల్ల ఫినిషింగ్ ప్రొఫెషనల్ బోటిక్ లుక్ లో వస్తుంది.
 
-మీరు బ్లౌజ్ డ్రాఫ్టింగ్, మిషన్ సమస్యలు, క్లాత్ ఎస్టిమేషన్ లేదా నిర్దిష్ట డ్రెస్ గురించి ఏదైనా అడగవచ్చు!`,
+మీరు బ్లౌజ్ డ్రాఫ్టింగ్, మిషన్ సమస్యలు, క్లాత్ ఎస్టిమేషన్ లేదా మీ ప్రస్తుత ప్రాజెక్ట్ గురించి ఏదైనా అడగవచ్చు!`,
       actionTag: "టైలరింగ్ మార్గదర్శి"
     } : {
       title: "Master Ji's Couture Tailoring Guidance",
@@ -223,18 +373,24 @@ In haute couture garment construction, achieving a flawless finish rests on thre
 2. **True Grainline Orientation:** Align all pattern pieces strictly with the lengthwise warp grain to ensure the garment hangs straight without twisting.
 3. **Press As You Sew:** Iron every single dart and seam immediately after stitching before crossing it with another seam.
 
-Feel free to ask specifically about Blouse drafting formulas, Machine troubleshooting, Patiala pleating, French seams, or Fabric calculations!`,
+Feel free to ask specifically about Blouse drafting formulas, Machine troubleshooting, Patiala pleating, French seams, or your active garment project!`,
       actionTag: "Tailoring Guidance"
     };
   }
 
-  async callExternalLLM(prompt, lang) {
+  async callExternalLLM(prompt, lang, project = null) {
     const isTe = lang === "te";
+    let contextSnippet = "";
+    if (project && project.getMeasurementsInInches) {
+      const m = project.getMeasurementsInInches();
+      const g = project.state?.selectedGarment;
+      contextSnippet = `\nActive Garment Project Context: Garment = ${g}, Chest = ${m.chest}", Waist = ${m.waist}", Shoulder = ${m.shoulder}", Length = ${m.length}". Reference these exact numbers if the user asks about their project.`;
+    }
+
     const systemPrompt = `You are "Master Ji", a world-renowned master tailor, NIFT fashion designer, and patient mentor in Indian and Western garment drafting, sewing machine mechanics, and haute couture finishing. 
 Respond in ${isTe ? "pure Telugu (తెలుగు) with standard tailoring terminology" : "English with clear tailoring terminology"}.
-Keep advice structured with clear numbered steps, formulas, and practical pro tips.`;
+Keep advice structured with clear numbered steps, formulas, and practical pro tips. Never fabricate measurements or present unverified claims as guarantees.${contextSnippet}`;
 
-    // Attempt Gemini API call
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${this.apiKey}`;
       const res = await fetch(url, {
@@ -246,6 +402,7 @@ Keep advice structured with clear numbered steps, formulas, and practical pro ti
           ]
         })
       });
+
       if (res.ok) {
         const data = await res.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text;

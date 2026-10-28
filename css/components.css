@@ -748,3 +748,479 @@
   transform: scale(1.08);
   box-shadow: 0 0 15px var(--accent-gold-glow);
 }
+
+/* ==========================================================================
+   GUIDED GARMENT PROJECT WORKSPACE STYLING
+   ========================================================================== */
+
+.project-workspace-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+/* Stepper Header */
+.stepper-header-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-golden);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-card);
+}
+
+.stepper-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.step-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  min-width: 90px;
+  text-align: center;
+  transition: var(--transition);
+  position: relative;
+}
+
+.step-node:hover {
+  color: var(--text-primary);
+}
+
+.step-circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid var(--border-subtle);
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+  transition: var(--transition);
+}
+
+.step-node.active .step-circle {
+  border-color: var(--accent-gold);
+  background: var(--accent-gold);
+  color: #1a1005;
+  box-shadow: 0 0 16px var(--accent-gold-glow);
+  transform: scale(1.08);
+}
+
+.step-node.active {
+  color: var(--text-golden);
+}
+
+.step-node.completed .step-circle {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.step-connector-line {
+  flex: 1;
+  height: 2px;
+  background: var(--border-subtle);
+  min-width: 20px;
+  margin-bottom: 1.4rem;
+}
+
+.step-connector-line.active {
+  background: linear-gradient(90deg, #10b981, var(--accent-gold));
+}
+
+/* Project Action Controls */
+.project-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.project-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.project-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+
+/* Garment Selector Cards in Stage 1 */
+.garment-select-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin: 1.5rem 0;
+}
+
+.garment-card-selectable {
+  background: var(--bg-card);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+}
+
+.garment-card-selectable:hover {
+  transform: translateY(-4px);
+  border-color: var(--border-golden);
+  background: var(--bg-card-hover);
+}
+
+.garment-card-selectable.selected {
+  border-color: var(--accent-gold);
+  background: rgba(245, 158, 11, 0.05);
+  box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.5), 0 0 12px var(--accent-gold-glow);
+}
+
+.garment-selected-badge {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: var(--accent-gold);
+  color: #1a1005;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  opacity: 0;
+  transition: var(--transition);
+}
+
+.garment-card-selectable.selected .garment-selected-badge {
+  opacity: 1;
+}
+
+/* Measurement Inputs with Validation */
+.measurement-grid-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1.25rem;
+  margin: 1.5rem 0;
+}
+
+.measurement-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.validation-error-text {
+  font-size: 0.78rem;
+  color: #ef4444;
+  margin-top: 0.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.measurement-field.has-error input {
+  border-color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.measurement-field.is-valid input {
+  border-color: #10b981;
+}
+
+/* Measurement Instructions Callout */
+.measure-guide-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  margin-top: 1rem;
+}
+
+.measure-guide-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  margin-bottom: 0.8rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.measure-guide-item:last-child {
+  margin-bottom: 0;
+}
+
+.measure-guide-icon {
+  color: var(--accent-gold);
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+/* Pattern Breakdown Table */
+.breakdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-card);
+}
+
+.breakdown-table th {
+  background: var(--bg-tertiary);
+  color: var(--text-golden);
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-align: left;
+  padding: 0.85rem 1.2rem;
+  border-bottom: 1px solid var(--border-golden);
+}
+
+.breakdown-table td {
+  padding: 0.85rem 1.2rem;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.breakdown-table tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Atelier Safety Banner */
+.atelier-safety-box {
+  background: rgba(244, 63, 94, 0.08);
+  border: 1px solid var(--border-rose);
+  border-left: 4px solid var(--accent-rose);
+  border-radius: var(--radius-sm);
+  padding: 1.25rem 1.5rem;
+  margin: 1.5rem 0;
+}
+
+.safety-rules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.safety-rule-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.safety-rule-item i {
+  color: var(--accent-rose);
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+/* Cutting Phases 1 - 4 Cards */
+.cutting-phases-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin: 1.5rem 0;
+}
+
+.cut-phase-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+}
+
+.cut-phase-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid var(--border-golden);
+  color: var(--accent-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+/* Stitching Steps Interactive Checklist */
+.stitching-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin: 1.5rem 0;
+}
+
+.stitch-step-row {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  cursor: pointer;
+  transition: var(--transition);
+  user-select: none;
+}
+
+.stitch-step-row:hover {
+  border-color: var(--border-golden);
+  background: var(--bg-card-hover);
+}
+
+.stitch-step-row.completed {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.stitch-step-checkbox {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 2px solid var(--border-golden);
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  flex-shrink: 0;
+  transition: var(--transition);
+}
+
+.stitch-step-row.completed .stitch-step-checkbox {
+  background: #10b981;
+  border-color: #10b981;
+  color: #ffffff;
+}
+
+.stitch-step-text {
+  flex: 1;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  transition: var(--transition);
+}
+
+.stitch-step-row.completed .stitch-step-text {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+/* Project Progress Meter */
+.progress-meter-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.progress-track {
+  flex: 1;
+  height: 10px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-rose), var(--accent-gold), #10b981);
+  border-radius: var(--radius-full);
+  transition: width 0.4s ease;
+}
+
+/* Dossier Summary Print & Notes */
+.dossier-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-golden);
+  border-radius: var(--radius-md);
+  padding: 2rem;
+  box-shadow: var(--shadow-card);
+}
+
+.dossier-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.25rem;
+  margin: 1.5rem 0;
+  padding: 1.25rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.project-notes-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  transition: var(--transition);
+}
+
+.project-notes-textarea:focus {
+  border-color: var(--accent-gold);
+}
+
+/* Print styling */
+@media print {
+  .atelier-header, .atelier-nav, .floating-mentor-trigger, .hero-atelier-banner, .project-action-bar, .stepper-header-box {
+    display: none !important;
+  }
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .dossier-box {
+    border: 1px solid #000000 !important;
+    box-shadow: none !important;
+  }
+}
+

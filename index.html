@@ -59,6 +59,10 @@
         <i class="fa-solid fa-book-bookmark"></i>
         <span data-i18n="navCurriculum">Stitching Guides</span>
       </button>
+      <button class="nav-tab" data-tab="project">
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        <span data-i18n="navProject">Start a Project</span>
+      </button>
       <button class="nav-tab" data-tab="drafting">
         <i class="fa-solid fa-compass-drafting"></i>
         <span data-i18n="navDraftingCalc">Drafting Calculator</span>
@@ -72,7 +76,7 @@
         <span data-i18n="navMachineDoctor">Machine Doctor</span>
       </button>
       <button class="nav-tab" data-tab="mentor">
-        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        <i class="fa-solid fa-comments"></i>
         <span data-i18n="navMentorAI">Master Ji (AI Mentor)</span>
       </button>
     </div>
@@ -89,7 +93,11 @@
           Learn It. Cut It. Stitch It.
         </p>
         <div class="hero-cta-group">
-          <button class="btn-luxury-primary" onclick="window.stitchableApp.switchTab('curriculum')">
+          <button class="btn-luxury-primary" onclick="window.stitchableApp.switchTab('project')">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            <span data-i18n="heroStartProject">Start a Garment Project</span>
+          </button>
+          <button class="btn-luxury-outline" onclick="window.stitchableApp.switchTab('curriculum')">
             <i class="fa-solid fa-book-open"></i>
             <span data-i18n="navCurriculum">Stitching Guides</span>
           </button>
@@ -337,6 +345,79 @@
         </div>
       </div>
     </section>
+
+    <!-- SECTION 5: GUIDED GARMENT PROJECT WORKSPACE -->
+    <section id="section-project" class="tab-section" style="display: none;">
+      <div class="interactive-container stitched-border project-workspace-container">
+        
+        <!-- Project Title & Subtitle Header -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; border-bottom: 1px dashed var(--border-golden); padding-bottom: 1rem;">
+          <div>
+            <span class="card-track-badge" style="margin-bottom: 0.5rem; display: inline-block;">
+              <i class="fa-solid fa-graduation-cap"></i> <span data-i18n="badgeOfficial">Reference Curriculum Edition</span>
+            </span>
+            <h3 class="font-serif" style="font-size: 1.85rem; color: var(--text-golden); margin-bottom: 0.3rem;" data-i18n="projectTitle">
+              Guided Garment Project Workspace
+            </h3>
+            <p style="color: var(--text-secondary); max-width: 820px; font-size: 0.95rem;" data-i18n="projectSubtitle">
+              Connect measurements, precision pattern drafting, fabric yardage, cutting guidance, and step-by-step stitching into one seamless atelier workflow.
+            </p>
+          </div>
+          <div class="project-status-pill" style="background: var(--bg-card); padding: 0.5rem 1rem; border-radius: var(--radius-full); border: 1px solid var(--border-subtle);">
+            <span class="project-status-dot"></span>
+            <span id="project-saved-indicator" data-i18n="projectAutoSaved">Auto-saved locally</span>
+          </div>
+        </div>
+
+        <!-- 7-Stage Stepper Navigation Bar -->
+        <div class="stepper-header-box">
+          <div class="stepper-nav-bar" id="project-stepper-bar">
+            <!-- Dynamically populated by GarmentProject in app.js -->
+          </div>
+        </div>
+
+        <!-- Top Stage Action Bar -->
+        <div class="project-action-bar">
+          <button id="project-prev-btn" class="btn-luxury-outline" style="padding: 0.6rem 1.25rem;">
+            <i class="fa-solid fa-arrow-left"></i>
+            <span data-i18n="btnPrevStage">Previous Stage</span>
+          </button>
+
+          <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+            <button id="project-reset-btn" class="btn-luxury-outline" style="padding: 0.6rem 1rem; border-color: rgba(239,68,68,0.4); color: #ef4444;" title="Reset Project">
+              <i class="fa-solid fa-rotate-left"></i>
+              <span data-i18n="btnResetProject">Reset Project</span>
+            </button>
+            <button id="project-print-btn" class="btn-luxury-outline" style="padding: 0.6rem 1rem;" title="Print Project Dossier">
+              <i class="fa-solid fa-print"></i>
+              <span data-i18n="btnPrintProject">Print / Export</span>
+            </button>
+            <button id="project-next-btn" class="btn-luxury-gold" style="padding: 0.6rem 1.5rem;">
+              <span data-i18n="btnNextStage">Continue to Next Stage</span>
+              <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Dynamic Stage Body Content Container -->
+        <div id="project-stage-body" class="project-stage-body">
+          <!-- Rendered dynamically by app.js for stages 1 through 7 -->
+        </div>
+
+        <!-- Bottom Stage Action Bar -->
+        <div class="project-action-bar" style="margin-top: 1rem;">
+          <button id="project-prev-btn-bottom" class="btn-luxury-outline" style="padding: 0.6rem 1.25rem;">
+            <i class="fa-solid fa-arrow-left"></i>
+            <span data-i18n="btnPrevStage">Previous Stage</span>
+          </button>
+          <button id="project-next-btn-bottom" class="btn-luxury-gold" style="padding: 0.6rem 1.5rem;">
+            <span data-i18n="btnNextStage">Continue to Next Stage</span>
+            <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+
+      </div>
+    </section>
   </main>
 
   <!-- Interactive Detail Modal -->
@@ -422,14 +503,17 @@
   <!-- Atelier Footer -->
   <footer class="atelier-footer">
     <div class="footer-inner">
-      <p data-i18n="footerText">Crafted with haute couture elegance based on NIFT & USHA International tailoring curriculum.</p>
+      <p data-i18n="footerText">StitchAble — Your Personal AI Tailoring Mentor • Empowering creators and tailoring artisans with precision guidance.</p>
       <div class="footer-refs">
-        <span><i class="fa-solid fa-book" style="color: var(--accent-gold); margin-right: 0.4rem;"></i>Indian Garment Design</span>
-        <span><i class="fa-solid fa-book" style="color: var(--accent-gold); margin-right: 0.4rem;"></i>Western Casual Wear</span>
-        <span><i class="fa-solid fa-book" style="color: var(--accent-gold); margin-right: 0.4rem;"></i>Little Girls Dress Making</span>
-        <span><i class="fa-solid fa-book" style="color: var(--accent-gold); margin-right: 0.4rem;"></i>Sewing and Design Book</span>
-        <span><i class="fa-solid fa-book" style="color: var(--accent-gold); margin-right: 0.4rem;"></i>Cutting & Tailoring</span>
-        <span><i class="fa-solid fa-book" style="color: var(--accent-gold); margin-right: 0.4rem;"></i>Creative Design</span>
+        <span><i class="fa-solid fa-leaf" style="color: var(--accent-gold); margin-right: 0.4rem;"></i><span data-i18n="valueSustainable">Zero-Waste & Smart Cutting</span></span>
+        <span><i class="fa-solid fa-person-dress" style="color: var(--accent-gold); margin-right: 0.4rem;"></i><span data-i18n="valueBespoke">Bespoke Fit Engineering</span></span>
+        <span><i class="fa-solid fa-gem" style="color: var(--accent-gold); margin-right: 0.4rem;"></i><span data-i18n="valueArtisan">Artisanal Hand-Finishing</span></span>
+        <span><i class="fa-solid fa-calculator" style="color: var(--accent-gold); margin-right: 0.4rem;"></i><span data-i18n="valueDeterministic">Deterministic Pattern Math</span></span>
+        <span><i class="fa-solid fa-shield-halved" style="color: var(--accent-gold); margin-right: 0.4rem;"></i><span data-i18n="valuePrivacy">Private & Local Storage</span></span>
+        <span><i class="fa-solid fa-award" style="color: var(--accent-gold); margin-right: 0.4rem;"></i><span data-i18n="valueTeam">Master Tailoring Atelier</span></span>
+      </div>
+      <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.5rem;">
+        &copy; 2026 StitchAble. <span data-i18n="appTagline">Learn It. Cut It. Stitch It.</span> All rights reserved.
       </div>
     </div>
   </footer>
