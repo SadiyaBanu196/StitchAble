@@ -1,0 +1,4 @@
+references/*.pdf
+scratch/
+.vercel
+node_modules/
