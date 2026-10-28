@@ -5,6 +5,11 @@ echo        Deploying StitchAble to Vercel Cloud
 echo ========================================================
 echo.
 echo Running Vercel deployment...
-npx vercel --prod
+call pnpm dlx vercel --prod
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo Trying fallback with npx...
+    call npx vercel --prod
+)
 echo.
 pause
